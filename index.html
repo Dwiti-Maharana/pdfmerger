@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PDF Merger</title>
+
+<script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+
+<style>
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #6f7bd9, #7b4ca3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Segoe UI", Arial, sans-serif;
+  }
+
+  .card {
+    width: 420px;
+    background: #fff;
+    padding: 28px;
+    border-radius: 16px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+    text-align: center;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 26px;
+    color: #222;
+  }
+
+  .subtitle {
+    font-size: 14px;
+    color: #777;
+    margin: 8px 0 22px;
+  }
+
+  .file-row {
+    margin-bottom: 12px;
+    text-align: left;
+  }
+
+  .file-label {
+    display: block;
+    border: 2px dashed #ccc;
+    border-radius: 10px;
+    padding: 12px;
+    cursor: pointer;
+    transition: 0.3s;
+  }
+
+  .file-label:hover {
+    border-color: #6f7bd9;
+    background: #f6f7ff;
+  }
+
+  .file-title {
+    font-weight: 600;
+    font-size: 14px;
+  }
+
+  .file-name {
+    display: block;
+    font-size: 12px;
+    color: #666;
+    margin-top: 4px;
+    word-break: break-all;
+  }
+
+  input[type="file"] {
+    display: none;
+  }
+
+  .add-btn {
+    width: 100%;
+    margin-top: 10px;
+    padding: 10px;
+    border: none;
+    background: #f2f2f2;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  .add-btn:hover {
+    background: #e4e4e4;
+  }
+
+  .merge-btn {
+    margin-top: 22px;
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, #6f7bd9, #7b4ca3);
+    border: none;
+    color: #fff;
+    font-size: 16px;
+    font-weight: bold;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+
+  .merge-btn:hover {
+    opacity: 0.95;
+  }
+
+  .footer {
+    margin-top: 14px;
+    font-size: 12px;
+    color: #aaa;
+  }
+</style>
+</head>
+
+<body>
+
+<div class="card">
+  <h1>PDF Merger</h1>
+  <div class="subtitle">Merge multiple PDF files in order</div>
+
+  <!-- First PDF -->
+  <div class="file-row">
+    <label class="file-label">
+      <span class="file-title">📄 Choose First PDF</span>
+      <span class="file-name" id="name1">No file selected</span>
+      <input type="file" accept="application/pdf" id="pdf1" onchange="showName(this, 'name1')">
+    </label>
+  </div>
+
+  <!-- Second PDF -->
+  <div class="file-row">
+    <label class="file-label">
+      <span class="file-title">📄 Choose Second PDF</span>
+      <span class="file-name" id="name2">No file selected</span>
+      <input type="file" accept="application/pdf" id="pdf2" onchange="showName(this, 'name2')">
+    </label>
+  </div>
+
+  <!-- Extra PDFs -->
+  <div id="extraFiles"></div>
+
+  <button class="add-btn" onclick="addMore()">➕ Add One More PDF</button>
+
+  <button class="merge-btn" onclick="mergePDFs()">Merge PDFs</button>
+
+  <div class="footer">All processing happens in your browser</div>
+</div>
+
+<script>
+let extraCount = 0;
+
+function showName(input, spanId) {
+  document.getElementById(spanId).textContent =
+    input.files[0] ? input.files[0].name : "No file selected";
+}
+
+function addMore() {
+  extraCount++;
+  const div = document.createElement("div");
+  const id = `extra${extraCount}`;
+
+  div.className = "file-row";
+  div.innerHTML = `
+    <label class="file-label">
+      <span class="file-title">📄 Extra PDF ${extraCount}</span>
+      <span class="file-name" id="${id}">No file selected</span>
+      <input type="file" class="extraPdf" accept="application/pdf"
+             onchange="showName(this, '${id}')">
+    </label>
+  `;
+  document.getElementById("extraFiles").appendChild(div);
+}
+
+async function mergePDFs() {
+  const files = [];
+  const pdf1 = document.getElementById("pdf1").files[0];
+  const pdf2 = document.getElementById("pdf2").files[0];
+
+  if (!pdf1 || !pdf2) {
+    alert("Please select first and second PDF files.");
+    return;
+  }
+
+  files.push(pdf1, pdf2);
+
+  document.querySelectorAll(".extraPdf").forEach(input => {
+    if (input.files[0]) files.push(input.files[0]);
+  });
+
+  const mergedPdf = await PDFLib.PDFDocument.create();
+
+  for (const file of files) {
+    const buffer = await file.arrayBuffer();
+    const pdf = await PDFLib.PDFDocument.load(buffer);
+    const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+    pages.forEach(p => mergedPdf.addPage(p));
+  }
+
+  const bytes = await mergedPdf.save();
+  const blob = new Blob([bytes], { type: "application/pdf" });
+
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "merged.pdf";
+  link.click();
+}
+</script>
+
+</body>
+</html>
